@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminDashboard } from "@/components/admin-dashboard";
-import { adminLogin, adminLogout, isAdminAuthenticated } from "@/app/admin/actions";
+import { adminLogin, adminLogout } from "@/app/admin/actions";
+import { getAdminRole } from "@/lib/admin-auth";
 import { listAllCounters } from "@/lib/counter";
 
 type Props = {
@@ -10,17 +11,17 @@ type Props = {
 };
 
 export default async function AdminPage({ searchParams }: Props) {
-  const auth = await isAdminAuthenticated();
+  const role = await getAdminRole();
   const params = await searchParams;
 
-  if (!auth) {
+  if (!role) {
     return (
       <main className="shell">
         <section className="hero">
           <span className="eyebrow">ADMIN ACCESS</span>
           <h1 className="title">관리자 대시보드 로그인</h1>
           <p className="subtitle">
-            관리자 비밀번호를 입력하면 일자별 총 현재 인원과 게이트별 실시간 집계를 확인할 수 있습니다.
+            관리자 비밀번호로 로그인하면 일자별, 게이트별 집계를 확인할 수 있고 슈퍼 관리자만 수정할 수 있습니다.
           </p>
         </section>
 
@@ -30,7 +31,7 @@ export default async function AdminPage({ searchParams }: Props) {
               className="input"
               type="password"
               name="password"
-              placeholder="관리자 비밀번호"
+              placeholder="관리자 또는 슈퍼 관리자 비밀번호"
               autoComplete="current-password"
               required
             />
@@ -39,7 +40,7 @@ export default async function AdminPage({ searchParams }: Props) {
             </button>
             {params.error ? (
               <p className="status" style={{ color: "var(--danger)" }}>
-                비밀번호가 맞지 않거나 `ADMIN_PASSWORD` 환경변수가 설정되지 않았습니다.
+                비밀번호가 맞지 않거나 환경 변수 설정이 완료되지 않았습니다.
               </p>
             ) : null}
             <Link href="/" className="pill">
@@ -57,8 +58,12 @@ export default async function AdminPage({ searchParams }: Props) {
     <main className="shell">
       <div className="topbar">
         <div>
-          <h1>관리자 대시보드</h1>
-          <p className="hint">일자/게이트별 입퇴장 현황과 현재 인원을 실시간으로 확인합니다.</p>
+          <h1>{role === "super" ? "슈퍼 관리자 대시보드" : "관리자 대시보드"}</h1>
+          <p className="hint">
+            {role === "super"
+              ? "일자별/게이트별 현황을 확인하고 필요한 경우 수치를 수정할 수 있습니다."
+              : "일자별/게이트별 현황만 조회할 수 있습니다."}
+          </p>
         </div>
         <div className="stack">
           <Link href="/" className="pill">
@@ -72,7 +77,7 @@ export default async function AdminPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <AdminDashboard initialRows={rows} />
+      <AdminDashboard initialRows={rows} role={role} />
     </main>
   );
 }

@@ -23,7 +23,7 @@ export default async function DayPage({ params }: Props) {
       <div className="topbar">
         <div>
           <h1>{DAY_LABEL_MAP[dayId as DayId]} 게이트 선택</h1>
-          <p className="hint">운영자가 맡은 게이트를 선택해서 해당 화면에서 입장과 퇴장을 계수합니다.</p>
+          <p className="hint">운영 중인 게이트를 선택해서 해당 화면에서 입장과 퇴장을 계수합니다.</p>
         </div>
         <div className="stack">
           <Link href="/" className="pill">
@@ -51,12 +51,8 @@ export default async function DayPage({ params }: Props) {
       <section className="card" style={{ marginTop: 24 }}>
         <div className="section-title">
           <div>
-            <h2>{DAY_LABEL_MAP[dayId as DayId]} 전체 현황</h2>
-            <p className="hint">게이트 선택 전 현재 누적 현황을 한눈에 볼 수 있습니다.</p>
-          </div>
-          <div className="pill">
-            현재 총 인원{" "}
-            {rows.reduce((sum, row) => sum + row.entered_count - row.exited_count, 0).toLocaleString()}명
+            <h2>{DAY_LABEL_MAP[dayId as DayId]} 안내</h2>
+            <p className="hint">전체 합산 인원은 숨기고, 각 게이트별 인원만 확인할 수 있도록 표시됩니다.</p>
           </div>
         </div>
       </section>

@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
+import { getAdminRole } from "@/lib/admin-auth";
 import { DAYS, GATES } from "@/lib/constants";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -14,26 +13,44 @@ type UpdateBody = {
 };
 
 function unauthorized() {
-  return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 401 });
+  return NextResponse.json({ error: "관리자 로그인이 필요합니다." }, { status: 401 });
 }
 
-export async function PATCH(request: Request) {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE_NAME)?.value !== "ok") {
+function forbidden() {
+  return NextResponse.json({ error: "슈퍼 관리자만 수정할 수 있습니다." }, { status: 403 });
+}
+
+async function requireSuperAdmin() {
+  const role = await getAdminRole();
+
+  if (!role) {
     return unauthorized();
   }
 
+  if (role !== "super") {
+    return forbidden();
+  }
+
+  return null;
+}
+
+export async function PATCH(request: Request) {
+  const authError = await requireSuperAdmin();
+  if (authError) {
+    return authError;
+  }
+
   if (!hasSupabaseEnv()) {
-    return NextResponse.json({ error: "Supabase 환경변수가 필요합니다." }, { status: 503 });
+    return NextResponse.json({ error: "Supabase environment variables are required." }, { status: 503 });
   }
 
   const body = (await request.json().catch(() => null)) as UpdateBody | null;
   if (!body?.dayId || !body?.gateId) {
-    return NextResponse.json({ error: "일자와 게이트가 필요합니다." }, { status: 400 });
+    return NextResponse.json({ error: "dayId and gateId are required." }, { status: 400 });
   }
 
   if (!DAYS.some((day) => day.id === body.dayId) || !GATES.some((gate) => gate.id === body.gateId)) {
-    return NextResponse.json({ error: "일자 또는 게이트 값이 올바르지 않습니다." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid day or gate." }, { status: 400 });
   }
 
   if (
@@ -44,7 +61,7 @@ export async function PATCH(request: Request) {
     body.enteredCount < 0 ||
     body.exitedCount < 0
   ) {
-    return NextResponse.json({ error: "수정 값은 0 이상의 숫자여야 합니다." }, { status: 400 });
+    return NextResponse.json({ error: "Counts must be non-negative numbers." }, { status: 400 });
   }
 
   const supabase = createServerSupabase();
@@ -66,13 +83,13 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE_NAME)?.value !== "ok") {
-    return unauthorized();
+  const authError = await requireSuperAdmin();
+  if (authError) {
+    return authError;
   }
 
   if (!hasSupabaseEnv()) {
-    return NextResponse.json({ error: "Supabase 환경변수가 필요합니다." }, { status: 503 });
+    return NextResponse.json({ error: "Supabase environment variables are required." }, { status: 503 });
   }
 
   const body = (await request.json().catch(() => null)) as UpdateBody | null;
@@ -80,11 +97,11 @@ export async function POST(request: Request) {
 
   if (body?.scope === "row") {
     if (!body.dayId || !body.gateId) {
-      return NextResponse.json({ error: "일자와 게이트가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "dayId and gateId are required." }, { status: 400 });
     }
 
     if (!DAYS.some((day) => day.id === body.dayId) || !GATES.some((gate) => gate.id === body.gateId)) {
-      return NextResponse.json({ error: "일자 또는 게이트 값이 올바르지 않습니다." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid day or gate." }, { status: 400 });
     }
 
     const { error } = await supabase
@@ -106,11 +123,11 @@ export async function POST(request: Request) {
 
   if (body?.scope === "day") {
     if (!body.dayId) {
-      return NextResponse.json({ error: "일자 값이 필요합니다." }, { status: 400 });
+      return NextResponse.json({ error: "dayId is required." }, { status: 400 });
     }
 
     if (!DAYS.some((day) => day.id === body.dayId)) {
-      return NextResponse.json({ error: "일자 값이 올바르지 않습니다." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid day." }, { status: 400 });
     }
 
     const { error } = await supabase
@@ -143,5 +160,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ error: "초기화 대상이 올바르지 않습니다." }, { status: 400 });
+  return NextResponse.json({ error: "Invalid reset scope." }, { status: 400 });
 }

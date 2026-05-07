@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { DAY_LABEL_MAP, DAYS, GATE_LABEL_MAP } from "@/lib/constants";
 import { getBrowserSupabase } from "@/lib/supabase/client";
+import type { AdminRole } from "@/lib/admin-auth";
 import type { CounterRow } from "@/lib/types";
 
 type Props = {
   initialRows: CounterRow[];
+  role: AdminRole;
 };
 
-export function AdminDashboard({ initialRows }: Props) {
+export function AdminDashboard({ initialRows, role }: Props) {
   const [rows, setRows] = useState<CounterRow[]>(initialRows);
-  const [status, setStatus] = useState("실시간 동기화 대기 중");
+  const [status, setStatus] = useState("실시간 연결 대기 중");
   const [drafts, setDrafts] = useState<Record<string, { entered: string; exited: string }>>({});
   const [activeTask, setActiveTask] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const canEdit = role === "super";
 
   useEffect(() => {
     setRows(initialRows);
@@ -74,7 +77,7 @@ export function AdminDashboard({ initialRows }: Props) {
         void supabase.removeChannel(channel);
       };
     } catch {
-      setStatus("환경변수 설정 전에는 미리보기 모드입니다.");
+      setStatus("환경 변수 미설정 상태라 미리보기 모드입니다.");
     }
   }, []);
 
@@ -97,6 +100,11 @@ export function AdminDashboard({ initialRows }: Props) {
   );
 
   async function saveRow(row: CounterRow) {
+    if (!canEdit) {
+      setStatus("관리자는 조회만 가능합니다.");
+      return;
+    }
+
     const draft = drafts[row.id];
     const entered = Number(draft?.entered);
     const exited = Number(draft?.exited);
@@ -118,12 +126,17 @@ export function AdminDashboard({ initialRows }: Props) {
       });
 
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(response.ok ? "관리자 수정이 저장되었습니다." : data?.error ?? "수정에 실패했습니다.");
+      setStatus(response.ok ? "수정이 저장되었습니다." : data?.error ?? "수정에 실패했습니다.");
       setActiveTask(null);
     });
   }
 
   async function resetScope(scope: "row" | "day" | "all", row?: CounterRow) {
+    if (!canEdit) {
+      setStatus("관리자는 조회만 가능합니다.");
+      return;
+    }
+
     const taskKey =
       scope === "all" ? "reset-all" : scope === "day" ? `day-${row?.day_id}` : `row-${row?.id}`;
     setActiveTask(taskKey);
@@ -151,15 +164,18 @@ export function AdminDashboard({ initialRows }: Props) {
     <div className="stack">
       <div className="toolbar">
         <div className="pill">{status}</div>
-        <button
-          type="button"
-          className="pill"
-          style={{ cursor: "pointer" }}
-          disabled={isPending && activeTask === "reset-all"}
-          onClick={() => resetScope("all")}
-        >
-          전체 초기화
-        </button>
+        <div className="pill">{canEdit ? "슈퍼 관리자" : "관리자"}</div>
+        {canEdit ? (
+          <button
+            type="button"
+            className="pill"
+            style={{ cursor: "pointer" }}
+            disabled={isPending && activeTask === "reset-all"}
+            onClick={() => resetScope("all")}
+          >
+            전체 초기화
+          </button>
+        ) : null}
       </div>
 
       <section className="grid day-grid">
@@ -180,17 +196,19 @@ export function AdminDashboard({ initialRows }: Props) {
                 <strong>{item.current.toLocaleString()}</strong>
               </div>
             </div>
-            <div style={{ marginTop: 14 }}>
-              <button
-                type="button"
-                className="pill"
-                style={{ cursor: "pointer" }}
-                disabled={isPending && activeTask === `day-${item.dayId}`}
-                onClick={() => resetScope("day", rows.find((row) => row.day_id === item.dayId))}
-              >
-                {item.label} 초기화
-              </button>
-            </div>
+            {canEdit ? (
+              <div style={{ marginTop: 14 }}>
+                <button
+                  type="button"
+                  className="pill"
+                  style={{ cursor: "pointer" }}
+                  disabled={isPending && activeTask === `day-${item.dayId}`}
+                  onClick={() => resetScope("day", rows.find((row) => row.day_id === item.dayId))}
+                >
+                  {item.label} 초기화
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
       </section>
@@ -199,7 +217,11 @@ export function AdminDashboard({ initialRows }: Props) {
         <div className="section-title">
           <div>
             <h2>게이트별 실시간 현황</h2>
-            <p className="hint">운영자가 버튼을 누를 때마다 자동으로 갱신됩니다.</p>
+            <p className="hint">
+              {canEdit
+                ? "슈퍼 관리자는 숫자를 직접 수정하거나 초기화할 수 있습니다."
+                : "관리자는 일자별, 게이트별 집계만 확인할 수 있습니다."}
+            </p>
           </div>
         </div>
 
@@ -213,7 +235,7 @@ export function AdminDashboard({ initialRows }: Props) {
                 <th>퇴장 누적</th>
                 <th>현재 인원</th>
                 <th>최종 업데이트</th>
-                <th>관리</th>
+                {canEdit ? <th>관리</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -222,63 +244,77 @@ export function AdminDashboard({ initialRows }: Props) {
                   <td>{DAY_LABEL_MAP[row.day_id]}</td>
                   <td>{GATE_LABEL_MAP[row.gate_id]}</td>
                   <td>
-                    <input
-                      className="input"
-                      style={{ minHeight: 42, width: 110 }}
-                      inputMode="numeric"
-                      value={drafts[row.id]?.entered ?? String(row.entered_count)}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [row.id]: {
-                            entered: event.target.value,
-                            exited: current[row.id]?.exited ?? String(row.exited_count),
-                          },
-                        }))
-                      }
-                    />
+                    {canEdit ? (
+                      <input
+                        className="input"
+                        style={{ minHeight: 42, width: 110 }}
+                        inputMode="numeric"
+                        value={drafts[row.id]?.entered ?? String(row.entered_count)}
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [row.id]: {
+                              entered: event.target.value,
+                              exited: current[row.id]?.exited ?? String(row.exited_count),
+                            },
+                          }))
+                        }
+                      />
+                    ) : (
+                      row.entered_count.toLocaleString()
+                    )}
                   </td>
                   <td>
-                    <input
-                      className="input"
-                      style={{ minHeight: 42, width: 110 }}
-                      inputMode="numeric"
-                      value={drafts[row.id]?.exited ?? String(row.exited_count)}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [row.id]: {
-                            entered: current[row.id]?.entered ?? String(row.entered_count),
-                            exited: event.target.value,
-                          },
-                        }))
-                      }
-                    />
+                    {canEdit ? (
+                      <input
+                        className="input"
+                        style={{ minHeight: 42, width: 110 }}
+                        inputMode="numeric"
+                        value={drafts[row.id]?.exited ?? String(row.exited_count)}
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [row.id]: {
+                              entered: current[row.id]?.entered ?? String(row.entered_count),
+                              exited: event.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    ) : (
+                      row.exited_count.toLocaleString()
+                    )}
                   </td>
                   <td>{(row.entered_count - row.exited_count).toLocaleString()}</td>
-                  <td>{new Intl.DateTimeFormat("ko-KR", { dateStyle: "short", timeStyle: "medium" }).format(new Date(row.updated_at))}</td>
                   <td>
-                    <div className="stack">
-                      <button
-                        type="button"
-                        className="pill"
-                        style={{ cursor: "pointer" }}
-                        disabled={isPending && activeTask === `save-${row.id}`}
-                        onClick={() => saveRow(row)}
-                      >
-                        저장
-                      </button>
-                      <button
-                        type="button"
-                        className="pill"
-                        style={{ cursor: "pointer" }}
-                        disabled={isPending && activeTask === `row-${row.id}`}
-                        onClick={() => resetScope("row", row)}
-                      >
-                        게이트 초기화
-                      </button>
-                    </div>
+                    {new Intl.DateTimeFormat("ko-KR", { dateStyle: "short", timeStyle: "medium" }).format(
+                      new Date(row.updated_at),
+                    )}
                   </td>
+                  {canEdit ? (
+                    <td>
+                      <div className="stack">
+                        <button
+                          type="button"
+                          className="pill"
+                          style={{ cursor: "pointer" }}
+                          disabled={isPending && activeTask === `save-${row.id}`}
+                          onClick={() => saveRow(row)}
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          className="pill"
+                          style={{ cursor: "pointer" }}
+                          disabled={isPending && activeTask === `row-${row.id}`}
+                          onClick={() => resetScope("row", row)}
+                        >
+                          게이트 초기화
+                        </button>
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

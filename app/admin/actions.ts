@@ -2,18 +2,26 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
+import { ADMIN_COOKIE_NAME, getAdminRole } from "@/lib/admin-auth";
 
 export async function adminLogin(formData: FormData) {
   const password = String(formData.get("password") ?? "");
-  const expected = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
+  let role: "admin" | "super" | null = null;
 
-  if (!expected || password !== expected) {
+  if (superAdminPassword && password === superAdminPassword) {
+    role = "super";
+  } else if (adminPassword && password === adminPassword) {
+    role = superAdminPassword ? "admin" : "super";
+  }
+
+  if (!role) {
     redirect("/admin?error=1");
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE_NAME, "ok", {
+  cookieStore.set(ADMIN_COOKIE_NAME, role, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -31,6 +39,5 @@ export async function adminLogout() {
 }
 
 export async function isAdminAuthenticated() {
-  const cookieStore = await cookies();
-  return cookieStore.get(ADMIN_COOKIE_NAME)?.value === "ok";
+  return (await getAdminRole()) !== null;
 }
