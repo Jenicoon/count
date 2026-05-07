@@ -6,10 +6,9 @@ export default function HomePage() {
     <main className="shell">
       <section className="hero">
         <span className="eyebrow">STAGE FLOW CONTROL</span>
-        <h1 className="title">무대 입퇴장 인원을 여러 운영자가 동시에 계수하는 사이트</h1>
+        <h1 className="title">무대 입퇴장 인원 계수</h1>
         <p className="subtitle">
-          일자별 운영 화면에서 게이트 단위로 입장과 퇴장을 즉시 기록하고, 관리자 화면에서는 전체 현황을
-          실시간으로 확인할 수 있게 구성했습니다.
+          일자별 운영 화면에서 게이트 단위로 입장과 퇴장을 즉시 기록
         </p>
       </section>
 
@@ -17,7 +16,7 @@ export default function HomePage() {
         {DAYS.map((day) => (
           <Link key={day.id} href={`/day/${day.id}`} className="card day-card">
             <strong>{day.label}</strong>
-            <span>GATE A, GATE B, GATE C 운영 화면으로 이동해서 입장/퇴장 인원을 바로 기록합니다.</span>
+            <span>GATE A, GATE B, GATE C 운영 화면으로 이동</span>
           </Link>
         ))}
       </section>
