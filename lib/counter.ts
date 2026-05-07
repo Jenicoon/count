@@ -29,6 +29,11 @@ export async function listCountersByDay(dayId: DayId): Promise<CounterRow[]> {
   return data as CounterRow[];
 }
 
+export async function getCounter(dayId: DayId, gateId: string): Promise<CounterRow | null> {
+  const rows = await listCountersByDay(dayId);
+  return rows.find((row) => row.gate_id === gateId) ?? null;
+}
+
 export async function listAllCounters(): Promise<CounterRow[]> {
   if (!hasSupabaseEnv()) {
     return DAYS.flatMap((day) =>

@@ -2,8 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-
-const COOKIE_NAME = "stage-counter-admin";
+import { ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
 
 export async function adminLogin(formData: FormData) {
   const password = String(formData.get("password") ?? "");
@@ -14,7 +13,7 @@ export async function adminLogin(formData: FormData) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, "ok", {
+  cookieStore.set(ADMIN_COOKIE_NAME, "ok", {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -27,11 +26,11 @@ export async function adminLogin(formData: FormData) {
 
 export async function adminLogout() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(ADMIN_COOKIE_NAME);
   redirect("/admin");
 }
 
 export async function isAdminAuthenticated() {
   const cookieStore = await cookies();
-  return cookieStore.get(COOKIE_NAME)?.value === "ok";
+  return cookieStore.get(ADMIN_COOKIE_NAME)?.value === "ok";
 }

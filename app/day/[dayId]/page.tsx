@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { GateCounterBoard } from "@/components/gate-counter";
-import { DAY_LABEL_MAP, DAYS, type DayId } from "@/lib/constants";
+import { DAY_LABEL_MAP, DAYS, GATE_LABEL_MAP, type DayId } from "@/lib/constants";
 import { listCountersByDay } from "@/lib/counter";
 
 type Props = {
@@ -23,8 +22,8 @@ export default async function DayPage({ params }: Props) {
     <main className="shell">
       <div className="topbar">
         <div>
-          <h1>{DAY_LABEL_MAP[dayId as DayId]} 운영 화면</h1>
-          <p className="hint">각 게이트에서 입장/퇴장 버튼을 눌러 인원을 누적합니다.</p>
+          <h1>{DAY_LABEL_MAP[dayId as DayId]} 게이트 선택</h1>
+          <p className="hint">운영자가 맡은 게이트를 선택해서 해당 화면에서 입장과 퇴장을 계수합니다.</p>
         </div>
         <div className="stack">
           <Link href="/" className="pill">
@@ -36,7 +35,31 @@ export default async function DayPage({ params }: Props) {
         </div>
       </div>
 
-      <GateCounterBoard dayId={dayId as DayId} initialRows={rows} />
+      <section className="grid gate-grid">
+        {rows.map((row) => (
+          <Link key={row.id} href={`/day/${dayId}/gate/${row.gate_id}`} className="card day-card">
+            <strong>{GATE_LABEL_MAP[row.gate_id]}</strong>
+            <span>
+              현재 인원 {(row.entered_count - row.exited_count).toLocaleString()}명
+              <br />
+              입장 {row.entered_count.toLocaleString()} / 퇴장 {row.exited_count.toLocaleString()}
+            </span>
+          </Link>
+        ))}
+      </section>
+
+      <section className="card" style={{ marginTop: 24 }}>
+        <div className="section-title">
+          <div>
+            <h2>{DAY_LABEL_MAP[dayId as DayId]} 전체 현황</h2>
+            <p className="hint">게이트 선택 전 현재 누적 현황을 한눈에 볼 수 있습니다.</p>
+          </div>
+          <div className="pill">
+            현재 총 인원{" "}
+            {rows.reduce((sum, row) => sum + row.entered_count - row.exited_count, 0).toLocaleString()}명
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
