@@ -21,7 +21,7 @@ export default async function AdminPage({ searchParams }: Props) {
           <span className="eyebrow">ADMIN ACCESS</span>
           <h1 className="title">관리자 대시보드 로그인</h1>
           <p className="subtitle">
-            관리자 비밀번호로 로그인하면 일자별, 게이트별 집계를 확인할 수 있고 슈퍼 관리자만 수정할 수 있습니다.
+            관리자 비밀번호로 로그인하면 일자별, 게이트별 집계를 확인할 수 있습니다.
           </p>
         </section>
 
@@ -31,7 +31,7 @@ export default async function AdminPage({ searchParams }: Props) {
               className="input"
               type="password"
               name="password"
-              placeholder="관리자 또는 슈퍼 관리자 비밀번호"
+              placeholder="관리자 비밀번호"
               autoComplete="current-password"
               required
             />
